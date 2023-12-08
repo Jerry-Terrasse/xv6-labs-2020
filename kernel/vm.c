@@ -440,3 +440,48 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
     return -1;
   }
 }
+
+const char *print_prefix[] = {"..", "..   ..", "..   ..   .."};
+
+void printwalk(pagetable_t pt, int depth, uint64 va)
+{
+  // there are 2^9 = 512 PTEs in a page table.
+  for (int i = 0; i < 512; i++) {
+    pte_t pte = pt[i];
+
+    if (pte & PTE_V) {
+      // char flags[5] = "----";
+      // flags[0] = (pte & PTE_R) ? 'r' : '-';
+      // flags[1] = (pte & PTE_W) ? 'w' : '-';
+      // flags[2] = (pte & PTE_X) ? 'x' : '-';
+      // flags[3] = (pte & PTE_U) ? 'u' : '-';
+
+      int offset = ((2 - depth) * 9) + 12;
+      // printf("original va: %p, depth: %d, off: %d\n", va, depth, offset);
+      va &= ~((uint64)PXMASK << offset);
+      va |= (uint64)i << offset;
+
+      // if(depth == 2) {
+      //   // leaf
+      //   // printf("idx: [索引编号]: va: [虚拟地址] -> pa: [物理地址], flags: [四个权限位(r/w/x/u)]");
+      //   printf("%sidx: %d: va: %p -> pa: %p, flags: %s\n", print_prefix[depth], i, va, PTE2PA(pte), flags);
+      // } else {
+      //   printf("%sidx: %d: pa: %p, flags: %s\n", print_prefix[depth], i, PTE2PA(pte), flags);
+      // }
+      printf("%s%d: pte %p pa %p\n", print_prefix[depth], i, pte, PTE2PA(pte));
+    }
+
+    if ((pte & PTE_V) && (pte & (PTE_R | PTE_W | PTE_X)) == 0) {
+      // this PTE points to a lower-level page table.
+      uint64 child = PTE2PA(pte);
+      printwalk((pagetable_t)child, depth+1, va);
+    }
+  }
+}
+
+void vmprint(pagetable_t pagetable)
+{
+  printf("page table %p\n", pagetable);
+  if(!pagetable) return;
+  printwalk(pagetable, 0, 0);
+}
