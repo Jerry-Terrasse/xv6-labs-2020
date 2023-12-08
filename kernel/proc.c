@@ -150,6 +150,7 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  p->trace_mask = 0;
 }
 
 // Create a user page table for a given process,
@@ -292,6 +293,7 @@ fork(void)
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
+  np->trace_mask = p->trace_mask;
 
   np->state = RUNNABLE;
 
@@ -692,4 +694,14 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+// Set the trace mask of the calling process.
+// Returns 0 on success, -1 on error.
+int
+trace(int mask)
+{
+  struct proc *p = myproc();
+  p->trace_mask = mask;
+  return 0;
 }
