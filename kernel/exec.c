@@ -115,6 +115,11 @@ exec(char *path, char **argv)
   p->trapframe->epc = elf.entry;  // initial program counter = main
   p->trapframe->sp = sp; // initial stack pointer
   proc_freepagetable(oldpagetable, oldsz);
+  
+  // sync user pagetable to kernel pagetable
+  // check_userdata(p->k_pagetable);
+  sync_pagetable(p->pagetable, p->k_pagetable);
+  // check_userdata(p->k_pagetable);
 
   if(p->pid == 1) {
     vmprint(p->pagetable);

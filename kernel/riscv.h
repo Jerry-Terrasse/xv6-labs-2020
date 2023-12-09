@@ -45,6 +45,7 @@ w_mepc(uint64 x)
 #define SSTATUS_UPIE (1L << 4) // User Previous Interrupt Enable
 #define SSTATUS_SIE (1L << 1)  // Supervisor Interrupt Enable
 #define SSTATUS_UIE (1L << 0)  // User Interrupt Enable
+#define SSTATUS_SUM (1L << 18) // Supervisor may access User Memory
 
 static inline uint64
 r_sstatus()
@@ -172,6 +173,19 @@ r_stvec()
   uint64 x;
   asm volatile("csrr %0, stvec" : "=r" (x) );
   return x;
+}
+
+// Physical Memory Protection
+static inline void
+w_pmpcfg0(uint64 x)
+{
+  asm volatile("csrw pmpcfg0, %0" : : "r" (x));
+}
+
+static inline void
+w_pmpaddr0(uint64 x)
+{
+  asm volatile("csrw pmpaddr0, %0" : : "r" (x));
 }
 
 // Machine-mode interrupt vector
