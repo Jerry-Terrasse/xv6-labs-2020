@@ -218,3 +218,17 @@ devintr()
   }
 }
 
+void
+backtrace()
+{
+  char *fp = (char*)r_fp();
+  char *page_bound = (char*)PGROUNDUP((uint64)fp);
+
+  printf("backtrace:\n");
+  while(fp < page_bound){
+    uint64 ra = *(uint64*)(fp - 8);
+    printf("%p\n", ra-4);
+    fp = *(char**)(fp - 16);
+  }
+  return;
+}
