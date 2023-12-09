@@ -69,16 +69,16 @@ usertrap(void)
     // page fault
 
     uint64 addr = r_stval();
-    if(addr >= p->sz) {
-      goto bad;
-    }
-    if(uvmalloc(p->pagetable, PGROUNDDOWN(addr), addr) == 0) {
-      goto bad;
+    if(addr >= p->sz || addr < p->trapframe->sp) {
+      printf("usertrap(): invalid page fault addr=%p pid=%d\n", addr, p->pid);
+      p->killed = 1;
+    } else if(uvmalloc(p->pagetable, PGROUNDDOWN(addr), addr+1) == 0) {
+      printf("usertrap(): out of memory (pid=%d)\n", p->pid);
+      p->killed = 1;
     }
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
-    bad:;
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
@@ -157,6 +157,14 @@ kerneltrap()
   if((which_dev = devintr()) == 0){
     printf("scause %p\n", scause);
     printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
+    panic("kerneltrap");
+  }
+
+  if(scause == 13 || scause == 15) {
+    // page fault
+    uint64 addr = r_stval();
+    printf("kerneltrap(): unexpected page fault addr=%p\n", addr);
+    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     panic("kerneltrap");
   }
 
