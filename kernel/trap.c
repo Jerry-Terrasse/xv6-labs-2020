@@ -78,8 +78,10 @@ usertrap(void)
 
   if(which_dev == 2 && p->alarm_interval) {
     p->alarm_ticks++;
-    if(p->alarm_ticks == p->alarm_interval) {
+    if(p->alarm_ticks >= p->alarm_interval && !p->in_alarm_handler) {
       p->alarm_ticks = 0;
+      p->in_alarm_handler = 1;
+      memmove(p->tp_interrupted, p->trapframe, sizeof(struct trapframe));
       p->trapframe->epc = (uint64)p->alarm_handler;
     }
   }
@@ -245,6 +247,9 @@ int
 sigalarm(int ticks, void (*handler)())
 {
   struct proc *p = myproc();
+  if(p->in_alarm_handler)
+    return -1;
+
   p->alarm_interval = ticks;
   p->alarm_ticks = 0;
   p->alarm_handler = handler;
@@ -254,5 +259,11 @@ sigalarm(int ticks, void (*handler)())
 int
 sigreturn()
 {
+  struct proc *p = myproc();
+  if(!p->in_alarm_handler)
+    return -1;
+
+  p->in_alarm_handler = 0;
+  memmove(p->trapframe, p->tp_interrupted, sizeof(struct trapframe));
   return 0;
 }

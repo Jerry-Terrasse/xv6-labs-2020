@@ -112,6 +112,11 @@ found:
     release(&p->lock);
     return 0;
   }
+  if((p->tp_interrupted = (struct trapframe *)kalloc()) == 0){
+    kfree(p->trapframe);
+    release(&p->lock);
+    return 0;
+  }
 
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
@@ -127,7 +132,7 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
-  p->alarm_interval = p->alarm_ticks = 0;
+  p->alarm_interval = p->alarm_ticks = p->in_alarm_handler = 0;
   p->alarm_handler = 0;
 
   return p;
