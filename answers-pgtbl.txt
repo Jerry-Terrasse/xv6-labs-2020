@@ -1,0 +1,3 @@
+1. page 0 is used as the kernel_pagetable, containing 512 root PTEs.
+2. 2 pages are allocated as lower-level pagetables when mapping UART0. Therefore, page 2 acts as the leaf pagetable for UART0, containing 512 PTEs referring to the UART0 memory region.
+3. No. The page 1 is not mapped in the user pagetable, but only in the kernel pagetable. Therefore, the process cannot access it in user mode.
