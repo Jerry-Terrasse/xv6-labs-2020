@@ -1,0 +1,11 @@
+1. a0, a1, a2, ... (a2 holds 13)
+
+2. There is no call to f or g. The compiler inlined them.
+
+3. 0x0000000000000628
+
+4. 0x0000000000000038 (the address of the next instruction of jalr)
+
+5. `He110 World`; `i` should be set to `0x726c6400`; No
+      
+6. undefined; the second argument is not passed to the function, thus `printf` will read from a part of the stack not intended for it.
