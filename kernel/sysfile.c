@@ -297,6 +297,7 @@ sys_open(void)
 
   begin_op();
 
+  const int MAX_FOLLOW_CNT = 10;
   if(omode & O_CREATE){
     ip = create(path, T_FILE, 0, 0);
     if(ip == 0){
@@ -304,13 +305,31 @@ sys_open(void)
       return -1;
     }
   } else {
-    if((ip = namei(path)) == 0){
-      end_op();
-      return -1;
-    }
-    ilock(ip);
-    if(ip->type == T_DIR && omode != O_RDONLY){
+    int cnt=0;
+    for(; cnt < MAX_FOLLOW_CNT; ++cnt) {
+      if((ip = namei(path)) == 0){
+        end_op();
+        return -1;
+      }
+      ilock(ip);
+      if(ip->type == T_DIR && omode != O_RDONLY){
+        iunlockput(ip);
+        end_op();
+        return -1;
+      }
+      if(ip->type != T_SYMLINK || (omode & O_NOFOLLOW))
+        break;
+      
+      // follow symlink
+      if(readi(ip, 0, (uint64)path, 0, MAXPATH) != MAXPATH) {
+        iunlockput(ip);
+        end_op();
+        return -1;
+      }
       iunlockput(ip);
+    }
+    if(cnt >= MAX_FOLLOW_CNT) {
+      // too many symlinks
       end_op();
       return -1;
     }
@@ -482,5 +501,38 @@ sys_pipe(void)
     fileclose(wf);
     return -1;
   }
+  return 0;
+}
+
+uint64
+sys_symlink(void)
+{
+  char target[MAXPATH], path[MAXPATH];
+  struct inode *ip;
+
+  if(argstr(0, target, MAXPATH) < 0 || argstr(1, path, MAXPATH) < 0)
+    return -1;
+
+  begin_op();
+  // if((dp = nameiparent(path, name)) == 0){
+  //   end_op();
+  //   return -1;
+  // }
+  // ilock(dp);
+  // if(dp->type)
+  ip = create(path, T_SYMLINK, 0, 0);
+  if(ip == 0 || ip->type != T_SYMLINK) {
+    end_op();
+    return -1;
+  }
+
+  if(writei(ip, 0, (uint64)target, 0, MAXPATH) != MAXPATH) {
+    iunlockput(ip);
+    end_op();
+    return -1;
+  }
+
+  iunlockput(ip);
+  end_op();
   return 0;
 }
