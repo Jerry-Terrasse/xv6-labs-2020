@@ -38,7 +38,7 @@ struct devsw {
 struct VMA {
   struct file* file;
   uint64 start;
-  int len, prot, flags;
+  int len, prot, flags, unmaped_len;
 };
 
 extern struct devsw devsw[];

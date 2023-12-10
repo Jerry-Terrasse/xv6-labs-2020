@@ -242,13 +242,14 @@ mmap(uint length, int prot, int flags, struct file *f)
   vma->flags = flags;
   vma->len = length;
   vma->start = start;
+  vma->unmaped_len = 0;
   return (void*)start;
 }
 
 int
 handle_page_fault(uint64 va)
 {
-  // printf("handle_page_fault: va=%p\n", va);
+  printf("handle_page_fault: va=%p\n", va);
   struct proc *p = myproc();
   struct VMA *vma = 0;
 
@@ -275,11 +276,69 @@ handle_page_fault(uint64 va)
     return -1;
   }
   int perm = PTE_U;
-  perm |= vma->prot == PROT_READ ? PTE_R : PTE_W;
+  if(vma->prot & PROT_READ){
+    perm |= PTE_R;
+  }
+  if(vma->prot & PROT_WRITE){
+    perm |= PTE_W;
+  }
   if(mappages(p->pagetable, PGROUNDDOWN(va), PGSIZE, (uint64)pa, perm) != 0){
     kfree(pa);
     return -1;
   }
+
+  return 0;
+}
+
+int munmap(uint64 addr, uint length)
+{
+  struct proc *p = myproc();
+  struct VMA *vma = 0;
+  int idx;
+
+  for(idx=0; idx < NVMA; ++idx) {
+    if(p->vma[idx] == 0) {
+      continue;
+    }
+    if(p->vma[idx]->start <= addr && addr < p->vma[idx]->start + p->vma[idx]->len) {
+      vma = p->vma[idx];
+      break;
+    }
+  }
+  if(vma == 0){
+    return -1;
+  }
+
+  for(int offset = 0; offset < length; offset += PGSIZE){
+    uint64 va = (uint64)addr + offset;
+    uint64 pa = walkaddr(p->pagetable, va);
+    if(pa == 0){
+      continue;
+    }
+    if((vma->prot & PROT_WRITE) && vma->flags == MAP_SHARED){
+      begin_op();
+      ilock(vma->file->ip);
+      if(writei(vma->file->ip, 0, pa, va - vma->start, PGSIZE) == -1){
+        iunlock(vma->file->ip);
+        end_op();
+        return -1;
+      }
+      iunlock(vma->file->ip);
+      end_op();
+    }
+    printf("munmap: va=%p, pa=%p\n", va, pa);
+    uvmunmap(p->pagetable, va, 1, 1);
+  }
+
+  vma->unmaped_len += length;
+  if(vma->unmaped_len >= vma->len){ // only work in this lab
+    fileclose(vma->file);
+    acquire(&vmas.lock);
+    vma->file = 0;
+    release(&vmas.lock);
+    p->vma[idx] = 0;
+  }
+  
 
   return 0;
 }

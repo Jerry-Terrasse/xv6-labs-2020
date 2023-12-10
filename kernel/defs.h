@@ -34,7 +34,7 @@ int             fileread(struct file*, uint64, int n);
 int             filestat(struct file*, uint64 addr);
 int             filewrite(struct file*, uint64, int n);
 void*           mmap(uint, int, int, struct file*);
-int             munmap(void*, uint);
+int             munmap(uint64, uint);
 int             handle_page_fault(uint64);
 
 // fs.c

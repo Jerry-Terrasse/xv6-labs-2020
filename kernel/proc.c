@@ -5,6 +5,9 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "fs.h"
+#include "sleeplock.h"
+#include "file.h"
 
 struct cpu cpus[NCPU];
 
@@ -343,6 +346,14 @@ exit(int status)
 
   if(p == initproc)
     panic("init exiting");
+
+  // unmap all VMA
+  for(int i = 0; i < NVMA; ++i) {
+    if(p->vma[i] == 0) {
+      continue;
+    }
+    munmap(p->vma[i]->start, p->vma[i]->len);
+  }
 
   // Close all open files.
   for(int fd = 0; fd < NOFILE; fd++){

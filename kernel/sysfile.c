@@ -497,9 +497,11 @@ sys_mmap(void)
     return -1;
   if(addr != 0)
     return -1;
-  if(prot != PROT_READ && prot != PROT_WRITE)
-    return -1;
+  // if(prot != PROT_READ && prot != PROT_WRITE)
+  //   return -1;
   if(flags != MAP_PRIVATE && flags != MAP_SHARED)
+    return -1;
+  if(flags == MAP_SHARED && !f->writable)
     return -1;
   if(offset != 0)
     return -1;
@@ -510,5 +512,12 @@ sys_mmap(void)
 uint64
 sys_munmap(void)
 {
-  return -1;
+  uint64 addr;
+  int size;
+  if(argaddr(0, &addr) < 0 || argint(1, &size) < 0)
+    return -1;
+  if(addr % PGSIZE != 0 || size % PGSIZE != 0)
+    return -1;
+
+  return munmap(addr, size);
 }
