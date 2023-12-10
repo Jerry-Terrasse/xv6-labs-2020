@@ -65,6 +65,14 @@ usertrap(void)
     intr_on();
 
     syscall();
+  } else if(r_scause() == 15) {
+    // handle COW page fault
+    uint64 va = r_stval();
+    if(uvmcow(p->pagetable, va) < 0){
+      printf("usertrap(): uvmcow failed\n");
+      printf("            va=%p ip=%p\n", va, r_sepc());
+      p->killed = 1;
+    }
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
