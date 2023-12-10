@@ -1,0 +1,7 @@
+thread-1: calling insert with p1 = &table[i], n1 = table[i]
+thread-2: calling insert with p2 = &table[i], n2 = table[i]
+thread-1: init new entry *e1 with e1->next = n1(aka table[i])
+thread-2: init new entry *e2 with e2->next = n2(aka table[i])
+thread-1: inserting entry *e1 to table[i] by *p = e1
+thread-2: inserting entry *e2 to table[i] by *p = e2,
+          which means overwriting entry *e1 from thread-1
