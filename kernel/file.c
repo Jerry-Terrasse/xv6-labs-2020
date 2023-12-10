@@ -12,6 +12,7 @@
 #include "file.h"
 #include "stat.h"
 #include "proc.h"
+#include "fcntl.h"
 
 struct devsw devsw[NDEV];
 struct {
@@ -19,10 +20,16 @@ struct {
   struct file file[NFILE];
 } ftable;
 
+struct {
+  struct spinlock lock;
+  struct VMA vmas[TOTVMA];
+} vmas;
+
 void
 fileinit(void)
 {
   initlock(&ftable.lock, "ftable");
+  initlock(&vmas.lock, "VMA");
 }
 
 // Allocate a file structure.
@@ -180,3 +187,99 @@ filewrite(struct file *f, uint64 addr, int n)
   return ret;
 }
 
+void*
+mmap(uint length, int prot, int flags, struct file *f)
+{
+  void* const MAP_FAILED = (void*)-1;
+  struct VMA *vma;
+  struct proc *p = myproc();
+
+  if(length == 0){
+    return MAP_FAILED;
+  }
+
+  uint64 used = 0x3000000000;
+  for(int i=0; i < NVMA; ++i) {
+    vma = p->vma[i];
+    if(vma == 0){
+      continue;
+    }
+    used = vma->start < used ? vma->start : used;
+  }
+  used = PGROUNDDOWN(used);
+  uint64 start = PGROUNDDOWN(used - length);
+  if(start < p->sz){
+    return MAP_FAILED;
+  }
+  if(start + length > used){
+    return MAP_FAILED;
+  }
+
+  int idx;
+  for(idx=0; idx < NVMA; ++idx){
+    if(p->vma[idx] == 0){
+      break;
+    }
+  }
+  if(idx == NVMA){ // reach process's max VMA
+    return MAP_FAILED;
+  }
+
+  acquire(&vmas.lock);
+  for(vma = vmas.vmas; vma < vmas.vmas + TOTVMA; vma++){
+    if(vma->file == 0){
+      break;
+    }
+  }
+  if(vma == vmas.vmas + TOTVMA){ // reach system's max VMA
+    return MAP_FAILED;
+  }
+  vma->file = filedup(f); // mark as in use
+  release(&vmas.lock);
+
+  p->vma[idx] = vma;
+  vma->prot = prot;
+  vma->flags = flags;
+  vma->len = length;
+  vma->start = start;
+  return (void*)start;
+}
+
+int
+handle_page_fault(uint64 va)
+{
+  // printf("handle_page_fault: va=%p\n", va);
+  struct proc *p = myproc();
+  struct VMA *vma = 0;
+
+  for(int i=0; i < NVMA; ++i) {
+    if(p->vma[i] == 0) {
+      continue;
+    }
+    if(p->vma[i]->start <= va && va < p->vma[i]->start + p->vma[i]->len) {
+      vma = p->vma[i];
+      break;
+    }
+  }
+  if(vma == 0){
+    return -1;
+  }
+
+  void* pa = kalloc();
+  if(pa == 0){
+    return -1;
+  }
+  memset(pa, 0x00, PGSIZE);
+  if(readi(vma->file->ip, 0, (uint64)pa, PGROUNDDOWN(va) - vma->start, PGSIZE) == -1){
+    kfree(pa);
+    return -1;
+  }
+  int perm = PTE_U;
+  perm |= vma->prot == PROT_READ ? PTE_R : PTE_W;
+  if(mappages(p->pagetable, PGROUNDDOWN(va), PGSIZE, (uint64)pa, perm) != 0){
+    kfree(pa);
+    return -1;
+  }
+
+  return 0;
+}

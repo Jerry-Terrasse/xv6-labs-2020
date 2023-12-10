@@ -35,6 +35,12 @@ struct devsw {
   int (*write)(int, uint64, int);
 };
 
+struct VMA {
+  struct file* file;
+  uint64 start;
+  int len, prot, flags;
+};
+
 extern struct devsw devsw[];
 
 #define CONSOLE 1
