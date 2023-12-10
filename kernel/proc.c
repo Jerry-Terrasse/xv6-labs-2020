@@ -293,6 +293,13 @@ fork(void)
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
 
+  // mirror the VMAs
+  if(vma_copy((uint64)p->vma, (uint64)np->vma) != 0) {
+    freeproc(np);
+    release(&np->lock);
+    return -1;
+  }
+
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)
     if(p->ofile[i])

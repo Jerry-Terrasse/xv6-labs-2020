@@ -36,6 +36,7 @@ int             filewrite(struct file*, uint64, int n);
 void*           mmap(uint, int, int, struct file*);
 int             munmap(uint64, uint);
 int             handle_page_fault(uint64);
+int             vma_copy(uint64, uint64);
 
 // fs.c
 void            fsinit(int);

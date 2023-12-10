@@ -501,7 +501,7 @@ sys_mmap(void)
   //   return -1;
   if(flags != MAP_PRIVATE && flags != MAP_SHARED)
     return -1;
-  if(flags == MAP_SHARED && !f->writable)
+  if(flags == MAP_SHARED && !f->writable && (prot & PROT_WRITE))
     return -1;
   if(offset != 0)
     return -1;

@@ -249,7 +249,7 @@ mmap(uint length, int prot, int flags, struct file *f)
 int
 handle_page_fault(uint64 va)
 {
-  printf("handle_page_fault: va=%p\n", va);
+  // printf("handle_page_fault: va=%p\n", va);
   struct proc *p = myproc();
   struct VMA *vma = 0;
 
@@ -326,7 +326,7 @@ int munmap(uint64 addr, uint length)
       iunlock(vma->file->ip);
       end_op();
     }
-    printf("munmap: va=%p, pa=%p\n", va, pa);
+    // printf("munmap: va=%p, pa=%p\n", va, pa);
     uvmunmap(p->pagetable, va, 1, 1);
   }
 
@@ -339,6 +339,43 @@ int munmap(uint64 addr, uint length)
     p->vma[idx] = 0;
   }
   
+
+  return 0;
+}
+
+int
+vma_copy(uint64 from_, uint64 to_)
+{
+  struct VMA **from = (struct VMA**)from_;
+  struct VMA **to = (struct VMA**)to_;
+  struct VMA *vma;
+
+  for(int i=0; i < NVMA; ++i) {
+    vma = from[i];
+    if(vma == 0){
+      continue;
+    }
+    
+    // find a free VMA
+    acquire(&vmas.lock);
+    for(vma = vmas.vmas; vma < vmas.vmas + TOTVMA; vma++){
+      if(vma->file == 0){
+        break;
+      }
+    }
+    if(vma == vmas.vmas + TOTVMA){ // reach system's max VMA
+      return -1;
+    }
+    vma->file = filedup(from[i]->file); // mark as in use
+    release(&vmas.lock);
+
+    to[i] = vma;
+    vma->prot = from[i]->prot;
+    vma->flags = from[i]->flags;
+    vma->len = from[i]->len;
+    vma->start = from[i]->start;
+    vma->unmaped_len = from[i]->unmaped_len;
+  }
 
   return 0;
 }
