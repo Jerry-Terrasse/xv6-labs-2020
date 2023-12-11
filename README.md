@@ -1,6 +1,6 @@
 ## Xv6 Labs
 
-我的Xv6实验代码，基于[原仓库](git://g.csail.mit.edu/xv6-labs-2020)
+我的Xv6实验代码，基于 原仓库(`git://g.csail.mit.edu/xv6-labs-2020`)
 
 ### 实验简介
 
